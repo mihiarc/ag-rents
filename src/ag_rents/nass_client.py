@@ -50,9 +50,9 @@ class NASSClient:
 
     # Short descriptions for the three rent types we need
     RENT_TYPES = {
-        "cropland_nonirrigated": "RENT, CASH, CROPLAND, NON-IRRIGATED - AVG",
-        "cropland_irrigated": "RENT, CASH, CROPLAND, IRRIGATED - AVG",
-        "pastureland": "RENT, CASH, PASTURELAND - AVG",
+        "cropland_nonirrigated": "RENT, CASH, CROPLAND, NON-IRRIGATED - EXPENSE, MEASURED IN $ / ACRE",
+        "cropland_irrigated": "RENT, CASH, CROPLAND, IRRIGATED - EXPENSE, MEASURED IN $ / ACRE",
+        "pastureland": "RENT, CASH, PASTURELAND - EXPENSE, MEASURED IN $ / ACRE",
     }
 
     def __init__(self, api_key: str | None = None):
