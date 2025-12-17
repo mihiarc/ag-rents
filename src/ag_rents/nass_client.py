@@ -100,11 +100,7 @@ class NASSClient:
 
         params = {
             "source_desc": "SURVEY",
-            "sector_desc": "ECONOMICS",
-            "group_desc": "EXPENSES",
             "commodity_desc": "RENT",
-            "statisticcat_desc": "RENT",
-            "unit_desc": "$ / ACRE",
             "agg_level_desc": "COUNTY",
             "short_desc": self.RENT_TYPES[rent_type],
         }
@@ -157,11 +153,7 @@ class NASSClient:
                 # Query all years at once (API handles it efficiently)
                 params = {
                     "source_desc": "SURVEY",
-                    "sector_desc": "ECONOMICS",
-                    "group_desc": "EXPENSES",
                     "commodity_desc": "RENT",
-                    "statisticcat_desc": "RENT",
-                    "unit_desc": "$ / ACRE",
                     "agg_level_desc": "COUNTY",
                     "short_desc": short_desc,
                     "year__GE": start_year,
