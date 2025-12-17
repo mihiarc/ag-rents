@@ -15,12 +15,26 @@ console = Console()
 # NRCS Soil Data Access URL
 SOIL_DATA_ACCESS_URL = "https://sdmdataaccess.nrcs.usda.gov/Tabular/post.rest"
 
+# FIPS code to state abbreviation mapping for CONUS
+FIPS_TO_STATE = {
+    "01": "AL", "04": "AZ", "05": "AR", "06": "CA", "08": "CO", "09": "CT",
+    "10": "DE", "11": "DC", "12": "FL", "13": "GA", "16": "ID", "17": "IL",
+    "18": "IN", "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+    "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS", "29": "MO",
+    "30": "MT", "31": "NE", "32": "NV", "33": "NH", "34": "NJ", "35": "NM",
+    "36": "NY", "37": "NC", "38": "ND", "39": "OH", "40": "OK", "41": "OR",
+    "42": "PA", "44": "RI", "45": "SC", "46": "SD", "47": "TN", "48": "TX",
+    "49": "UT", "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+    "56": "WY",
+}
 
-def query_soil_data_access(sql_query: str) -> pd.DataFrame:
+
+def query_soil_data_access(sql_query: str, columns: list[str] | None = None) -> pd.DataFrame:
     """Execute SQL query against NRCS Soil Data Access service.
 
     Args:
         sql_query: SQL query to execute against SDA tables
+        columns: Optional column names for the result DataFrame
 
     Returns:
         DataFrame with query results
@@ -43,9 +57,12 @@ def query_soil_data_access(sql_query: str) -> pd.DataFrame:
     if not data:
         return pd.DataFrame()
 
-    # First row contains column names
-    columns = list(data[0].keys())
-    df = pd.DataFrame(data, columns=columns)
+    # API returns list of lists, not list of dicts
+    if isinstance(data[0], list):
+        df = pd.DataFrame(data, columns=columns)
+    else:
+        # Handle dict format if it ever occurs
+        df = pd.DataFrame(data)
 
     return df
 
@@ -66,6 +83,12 @@ def download_nccpi_by_county(
     Returns:
         DataFrame with county-level NCCPI values
     """
+    # Convert FIPS to state abbreviation for NRCS query
+    state_abbr = FIPS_TO_STATE.get(state_fips)
+    if not state_abbr:
+        console.print(f"[yellow]Unknown state FIPS: {state_fips}[/yellow]")
+        return pd.DataFrame()
+
     # Query county-level area-weighted NCCPI values
     # This query joins mapunit, component, and cointerp tables to get NCCPI
     sql_query = f"""
@@ -73,8 +96,8 @@ def download_nccpi_by_county(
         legend.areasymbol AS areasymbol,
         legend.areaname AS county_name,
         SUM(mapunit.muacres * component.comppct_r / 100 *
-            CASE WHEN cointerp.interprating IS NULL THEN 0
-                 ELSE cointerp.interprating END) /
+            CASE WHEN cointerp.interphr IS NULL THEN 0
+                 ELSE CAST(cointerp.interphr AS FLOAT) END) /
             NULLIF(SUM(mapunit.muacres * component.comppct_r / 100), 0) AS nccpi_weighted_avg,
         SUM(mapunit.muacres) AS total_acres
     FROM
@@ -84,7 +107,7 @@ def download_nccpi_by_county(
         LEFT JOIN cointerp ON component.cokey = cointerp.cokey
             AND cointerp.mrulename = 'NCCPI - National Commodity Crop Productivity Index (Ver 3.0)'
     WHERE
-        legend.areasymbol LIKE '{state_fips}%'
+        legend.areasymbol LIKE '{state_abbr}%'
         AND mapunit.muacres > 0
     GROUP BY
         legend.areasymbol, legend.areaname
@@ -92,7 +115,8 @@ def download_nccpi_by_county(
         legend.areasymbol
     """
 
-    df = query_soil_data_access(sql_query)
+    columns = ["areasymbol", "county_name", "nccpi_weighted_avg", "total_acres"]
+    df = query_soil_data_access(sql_query, columns=columns)
 
     if df.empty:
         console.print(f"[yellow]No NCCPI data for state {state_fips}[/yellow]")
@@ -184,8 +208,8 @@ def download_nccpi_corn_soy(output_dir: Path | None = None) -> pd.DataFrame:
         legend.areaname AS county_name,
         cointerp.mrulename AS nccpi_type,
         SUM(mapunit.muacres * component.comppct_r / 100 *
-            CASE WHEN cointerp.interprating IS NULL THEN 0
-                 ELSE cointerp.interprating END) /
+            CASE WHEN cointerp.interphr IS NULL THEN 0
+                 ELSE CAST(cointerp.interphr AS FLOAT) END) /
             NULLIF(SUM(mapunit.muacres * component.comppct_r / 100), 0) AS nccpi_weighted_avg,
         SUM(mapunit.muacres) AS total_acres
     FROM
