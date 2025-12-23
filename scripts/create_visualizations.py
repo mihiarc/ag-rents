@@ -56,8 +56,10 @@ def create_static_map(
     """
     fig, ax = plt.subplots(1, 1, figsize=(15, 10))
 
-    # Plot counties without data in gray
-    gdf[gdf[column].isna()].plot(ax=ax, color="lightgray", edgecolor="white", linewidth=0.1)
+    # Plot counties without data in gray (only if there are any)
+    gdf_missing = gdf[gdf[column].isna()]
+    if not gdf_missing.empty:
+        gdf_missing.plot(ax=ax, color="lightgray", edgecolor="white", linewidth=0.1)
 
     # Plot counties with data
     gdf[gdf[column].notna()].plot(
@@ -205,12 +207,16 @@ def create_folium_map(
         legend_name=f"{title} ($/acre)",
     ).add_to(m)
 
+    # Determine correct column names after merge (handle _x/_y suffixes)
+    county_name_col = "county_name" if "county_name" in gdf_data.columns else "county_name_x"
+    state_fips_col = "state_fips" if "state_fips" in gdf_data.columns else "state_fips_x"
+
     # Add tooltips
     folium.GeoJson(
         gdf_data,
         style_function=lambda x: {"fillColor": "transparent", "color": "transparent"},
         tooltip=folium.GeoJsonTooltip(
-            fields=["county_name", "state_fips", column],
+            fields=[county_name_col, state_fips_col, column],
             aliases=["County", "State FIPS", "Rent ($/acre)"],
             localize=True,
         ),
